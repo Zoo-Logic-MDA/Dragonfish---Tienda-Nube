@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<Application>
+  <HabilitarDescargaVentas>True</HabilitarDescargaVentas>
+  <HabilitarPublicacionStock>False</HabilitarPublicacionStock>
+  <!--Tiempo de ejecucion-->
+  <StartUp>20</StartUp>
+  <!--Dragonfish-->
+  <ClienteDragonfish></ClienteDragonfish>
+  <TokenDragonfish></TokenDragonfish>
+  <UrlDragonfish>http://localhost:8008</UrlDragonfish>
+  <BasesDeDatos></BasesDeDatos>
+  <ComprobanteSinPago>0</ComprobanteSinPago>
+  <!--Descarga de ventas de Tienda Nube-->
+  <PlataformaEcommerce></PlataformaEcommerce>
+  <!--Tienda Nube-->
+  <ClienteTiendaNube></ClienteTiendaNube>
+  <TokenTiendaNube></TokenTiendaNube>
+  <FechaOrden>01/01/1900 00:00:00</FechaOrden>
+  <FechaProductos>01/01/1900 00:00:00</FechaProductos>
+  <!--zNube-->
+  <TokenStockOnline>
+  </TokenStockOnline>
+  <ResourcesID>
+  </ResourcesID>
+  <FechaStock>01/01/1900 00:00:00</FechaStock>
+</Application>
