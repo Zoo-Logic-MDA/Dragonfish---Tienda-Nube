@@ -1,113 +1,195 @@
-﻿using RestSharp;
+using Dragonfish_TN.Request;
+using IWshRuntimeLibrary;
+using Newtonsoft.Json.Linq;
+using RestSharp;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
 
-namespace Stock_TN
+namespace Dragonfish_TN
 {
+	internal static class Program
+	{
+		private static Singleton singleton;
 
+		private static Sync sync;
 
-    static class Program
-    {
-        static Singleton singleton = null;
-        static Sync sync = null;
-        static Notification notification = null;
+		private static Notification notification;
 
-        static void Main()
-        {
-            string thisprocessname = Process.GetCurrentProcess().ProcessName;
+		public static System.Threading.Timer InternalTimer;
 
-            if (Process.GetProcesses().Count(p => p.ProcessName == thisprocessname) > 1)
-            {
-                return;
-            }
-                       
-            notification = Notification.Instance;
-            notification.Start();
-            singleton = Singleton.Instance;
+		static Program()
+		{
+			Program.singleton = null;
+			Program.sync = null;
+			Program.notification = null;
+		}
 
+		private static void AddShortcut()
+		{
+			WshShell variable = (WshShell)Activator.CreateInstance(Marshal.GetTypeFromCLSID(new Guid("72C24DD5-D70A-438B-8A42-98424B88AFB8")));
+			string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+			IWshShortcut executablePath = (IWshShortcut)((dynamic)variable.CreateShortcut(string.Concat(folderPath, "\\", Application.ProductName, ".lnk")));
+			executablePath.TargetPath = Application.ExecutablePath;
+			executablePath.WorkingDirectory = Application.StartupPath;
+			executablePath.Description = "Dragonfish(TN)";
+			executablePath.Save();
+		}
 
-            if (singleton.clienteDragonfish == "")
-            {
-                Configuracion configuracion = new Configuracion();
-                configuracion.Show();
-            }
-            else
-            {
-                iniciarApp();
-            }
+		public static void iniciarApp()
+		{
+			IRestResponse restResponse = EstadoServicio.Response();
+			bool flag = true;
+			try
+			{
+				if (restResponse.StatusCode == HttpStatusCode.OK)
+				{
+					flag = bool.Parse(JObject.Parse(restResponse.Content)["estado"].ToString());
+				}
+			}
+			catch
+			{
+			}
+			if (!flag)
+			{
+				LogHandler.EnviarMsj("", ErrorType.Critical, "Get data Tienda Nube.\nObject reference not set to an instance of an object.\nStack Trace:\n[System.NullReferenceException: Object reference not set to an instance of an object.]at Program.GetDataTN()", Program.singleton.origenDFTN);
+				Program.notification.ErrorIcon("Get data Tienda Nube");
+			}
+			else
+			{
+				try
+				{
+					Program.sync = Sync.Instance;
+					if (!Program.sync.running)
+					{
+						Assembly executingAssembly = Assembly.GetExecutingAssembly();
+						string fileVersion = FileVersionInfo.GetVersionInfo(executingAssembly.Location).FileVersion;
+						LogHandler.EnviarMsj("", ErrorType.Information, string.Concat("Iniciando aplicación. V=", fileVersion), Program.singleton.origenDFTN);
+						Program.notification.ProcessingIcon();
+						if ((!Program.singleton.habilitarDescargaVentas ? false : Program.singleton.notificarOrdenesModificadas))
+						{
+							IRestResponse restResponse1 = ObtenerInformacionServicio.Response();
+							if (restResponse1.StatusCode == HttpStatusCode.OK)
+							{
+								string str = JObject.Parse(restResponse1.Content)["InformacionOrganic"]["Version"].ToString();
+								if ((new Version("10.0010.13084")).CompareTo(new Version(str)) > 0)
+								{
+									LogHandler.EnviarMsj("", ErrorType.Minor, "Se desactiva Modificación de Ordenes. Versión mínima 10.0010.13084.", Program.singleton.origenDFTN);
+									Program.singleton.DesactivarModificacionDeOrdenes();
+								}
+							}
+						}
+						if (!Program.singleton.habilitarDescargaVentas)
+						{
+							Program.sync.StartSync();
+							Program.notification.IdleIcon();
+						}
+						else
+						{
+							IRestResponse restResponse2 = VerificarConexionDF.Response();
+							HttpStatusCode statusCode = restResponse2.StatusCode;
+							if (statusCode == HttpStatusCode.OK)
+							{
+								Program.sync.StartSync();
+								Program.notification.IdleIcon();
+							}
+							else if (statusCode == HttpStatusCode.Unauthorized)
+							{
+								LogHandler.EnviarMsj("", ErrorType.Critical, "Fallo al iniciar aplicación: \nError de autorización. API Dragonfish", Program.singleton.origenDFTN);
+								Program.notification.ErrorIcon("Error de autorización. API Dragonfish.");
+							}
+							else if (statusCode == HttpStatusCode.NotFound)
+							{
+								Program.notification.IdleIcon();
+								Program.sync.StartSync();
+							}
+							else
+							{
+								string[] statusDescription = new string[] { "Fallo al iniciar aplicación: \nNo se puede acceder a la api de Dragonifsh.\nCódigo: ", null, null, null, null };
+								statusDescription[1] = restResponse2.StatusCode.ToString();
+								statusDescription[2] = ". Descripción: ";
+								statusDescription[3] = restResponse2.StatusDescription;
+								statusDescription[4] = ".";
+								LogHandler.EnviarMsj("", ErrorType.Critical, string.Concat(statusDescription), Program.singleton.origenDFTN);
+								Program.notification.ErrorIcon("No se puede acceder a la api de Dragonifsh.");
+								Program.InternalTimer = new System.Threading.Timer(new TimerCallback(Program.InitProcess), null, 60000, 0);
+							}
+						}
+					}
+				}
+				catch (Exception exception)
+				{
+					throw exception;
+				}
+			}
+		}
 
-            Application.Run();
-        }
+		private static void InitProcess(object state)
+		{
+			Program.iniciarApp();
+		}
 
-        static public void iniciarApp()
-        {
-            LogHandler.EnviarMsj("", ErrorType.Information, "Iniciando aplicación.", singleton.origenDFTN);
-
-            notification.ProcessingIcon();
-            
-            sync = Sync.Instance;            
-
-            var response = verificarConexionDF();
-
-            switch (response.StatusCode)
-            {
-                case HttpStatusCode.Unauthorized:
-                    LogHandler.EnviarMsj("", ErrorType.Critical, "Fallo al iniciar aplicación: \nError de autorización. API Dragonfish", singleton.origenDFTN);
-                    notification.ErrorIcon("Error de autorización. API Dragonfish.");
-                    break;
-
-                case HttpStatusCode.OK:
-                    sync.StartSync();
-                    notification.IdleIcon();
-
-                    break;
-
-                case HttpStatusCode.NotFound:
-                    notification.IdleIcon();
-                    sync.StartSync();
-                    break;
-
-                default:
-                    LogHandler.EnviarMsj("", ErrorType.Critical, "Fallo al iniciar aplicación: \nNo se puede acceder a la api de Dragonifsh.\nCódigo: " + response.StatusCode + ". Descripción: " + response.StatusDescription+".", singleton.origenDFTN);
-                    notification.ErrorIcon("No se puede acceder a la api de Dragonifsh.");
-
-                    break;
-            }
-        }
-
-        static public void ConsoleLog(string Message)
-        {
-            try
-            {
-                using (StreamWriter file = new StreamWriter(singleton.log, true))
-                {
-                    file.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "-" + Message);
-                }
-            }
-            catch
-            {
-
-            }
-        }
-
-        static public IRestResponse verificarConexionDF()
-        {
-            var postArticulos = new RestClient(singleton.urlDragonfish + "/api.Dragonfish/Articulo/SEÑA/");
-            var request = new RestRequest(Method.GET);
-
-            request.AddHeader("BaseDeDatos", singleton.basesDeDatos);
-            request.AddHeader("idCliente", singleton.clienteDragonfish);
-            request.AddHeader("Authorization", singleton.tokenDragonfish);
-
-            var response = postArticulos.Execute(request);
-
-            return response;
-        }
-
-
-    }
+		[STAThread]
+		private static void Main()
+		{
+			try
+			{
+				Program.AddShortcut();
+				string processName = Process.GetCurrentProcess().ProcessName;
+				if (Process.GetProcesses().Count<Process>((Process p) => p.ProcessName == processName) <= 1)
+				{
+					Program.notification = Notification.Instance;
+					Program.notification.Start();
+					Program.singleton = Singleton.Instance;
+					if ((Program.singleton.habilitarDescargaVentas ? true : Program.singleton.generarMovStock))
+					{
+						if (Program.singleton.clienteDragonfish != "")
+						{
+							Program.iniciarApp();
+						}
+						else
+						{
+							(new Configuracion()).Show();
+						}
+					}
+					else if (!Program.singleton.habilitarPublicacionStock)
+					{
+						(new Configuracion()).Show();
+					}
+					else if (Program.singleton.tokenStockOnline != "")
+					{
+						Program.iniciarApp();
+					}
+					else
+					{
+						(new Configuracion()).Show();
+					}
+					try
+					{
+						string str = string.Concat(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "\\Dragonfish(TN).InstallState");
+						if (System.IO.File.Exists(str))
+						{
+                            System.IO.File.Delete(str);
+						}
+					}
+					catch
+					{
+					}
+					Application.Run();
+				}
+			}
+			catch (Exception exception1)
+			{
+				Exception exception = exception1;
+				LogHandler.EnviarMsj("", ErrorType.Critical, string.Concat("Iniciando aplicación: ", exception.Message), Program.singleton.origenDFTN);
+			}
+		}
+	}
 }
