@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<Application>
+  <HabilitarDescargaVentas>True</HabilitarDescargaVentas>
+  <HabilitarPublicacionStock>False</HabilitarPublicacionStock>
+  <!--Tiempo de ejecucion-->
+  <StartUp>20</StartUp>
+  <!--Dragonfish-->
+  <ClienteDragonfish>DEMO</ClienteDragonfish>
+  <TokenDragonfish>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2NDMwNTUxNTYsInVzdWFyaW8iOiJBRE1JTiIsInBhc3N3b3JkIjoiN2Y1MjRmNGI5NjhmMTkyMmNmZmVkNTk2YjRhNzM3NzYxNDg2ZTVhNjgzZDk3Njc4NGNkZDI4NjZjZjE1Yzc2ZCJ9.4kjKla9r1TPU12e64pqzKdwPylFlcfk0VpajKStWE9E</TokenDragonfish>
+  <UrlDragonfish>http://localhost:8008</UrlDragonfish>
+  <BasesDeDatos>ONLINE</BasesDeDatos>
+  <ComprobanteSinPago>1</ComprobanteSinPago>
+  <!--Descarga de ventas de Tienda Nube-->
+  <PlataformaEcommerce>TIENDANUBE</PlataformaEcommerce>
+  <!--Tienda Nube-->
+  <TokenTiendaNube>d51b9cd917173324ae3c3c22ac64bb2c4c9def55</TokenTiendaNube>
+  <ClienteTiendaNube>1111004</ClienteTiendaNube>
+  <FechaOrden>15/05/2020 17:09:48</FechaOrden>
+  <FechaProductos>01/01/1900 00:00:00</FechaProductos>
+  <!--zNube-->
+  <TokenStockOnline>
+  </TokenStockOnline>
+  <ResourcesID>
+  </ResourcesID>
+  <FechaStock>01/01/1900 00:00:00</FechaStock>
+</Application>
